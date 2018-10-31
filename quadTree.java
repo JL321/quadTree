@@ -95,17 +95,6 @@ public class quadTree<E> {
 	}
 	
 	/**
-	 * removeAgent
-	 * Removes agent from subtree, called from main
-	 * 
-	 * @param agent
-	 */
-	
-	public void removeAgent(Shape agent) {
-		root = remove(root, agent);
-	}
-	
-	/**
 	 * remove
 	 * Removes agent from subtree recursively
 	 * 
@@ -136,29 +125,6 @@ public class quadTree<E> {
 		
 		return root;
 		
-		
-	}
-	
-	
-	@Deprecated
-	public void display() {
-		displayAgent(root);
-	}
-	
-	
-	@Deprecated
-	public void displayAgent(Node root) {
-
-		System.out.println(root.agentList.size()+" SIZE");
-		
-		if (root.q1 != null){
-			displayAgent(root.q1);
-			displayAgent(root.q2);
-			displayAgent(root.q3);
-			displayAgent(root.q4);
-		}
-		
-		return;
 	}
 	
 	/**
@@ -237,10 +203,10 @@ public class quadTree<E> {
 	
 	public Node update(Node root) {
 		
-		if (root.listLen() >= 5) {
+		if (root.listLen() >= 5) { //Specifies threshold for splitting - in this case, 5+ balls required in a node before it splits
 			if (root.q1 == null) {
 				
-				if (root.levelCounter <= 5) {
+				if (root.levelCounter <= 8) { //Will no longer continue splitting after the 5th layer of the quadTree (5th split - aims to prevent the creation of infinite nodes)
 				
 					int midY = (int)Math.round((root.higherBoundY-root.lowerBoundY)/2)+root.lowerBoundY;
 					int midX = (int)Math.round((root.higherBoundX-root.lowerBoundX)/2)+root.lowerBoundX;
@@ -358,18 +324,40 @@ public class quadTree<E> {
 			for (int i = 0; i < root.agentList.size(); i++) { //
 				for (int a = i+1; a < root.agentList.size(); a++) {
 					if (root.agentList.get(i).intersects(root.agentList.get(a))) {
+					
+						double dx1 = root.agentList.get(i).getDx();
+						double dy1 = root.agentList.get(i).getDy();
+						double dx2 = root.agentList.get(a).getDx();
+						double dy2 = root.agentList.get(a).getDy();
 						
-						int dx1 = root.agentList.get(i).getDx();
-						int dy1 = root.agentList.get(i).getDy();
-						int dx2 = root.agentList.get(a).getDx();
-						int dy2 = root.agentList.get(a).getDy();
+						double x1 = root.agentList.get(i).getXD();
+						double y1 = root.agentList.get(i).getYD();
+						double x2 = root.agentList.get(a).getXD();
+						double y2 = root.agentList.get(a).getYD();
 						
 						Shape ag1 = root.agentList.get(i);
 						Shape ag2 = root.agentList.get(a);
 						
+						double [] velVec1 = {dx1, dy1};
+						double [] velVec2 = {dx2, dy2};
+						double [] posVec1 = {x1, y1};
+						double [] posVec2 = {x2, y2};
+
+						double [] newVec2 = getVelocity2(velVec1, velVec2, posVec1, posVec2);
+						double [] newVec1 = getVelocity1(velVec1, velVec2, posVec1, posVec2);
+						
+						ag1.setDx(newVec1[0]);
+						ag1.setDy(newVec1[1]);
+						ag2.setDx(newVec2[0]);
+						ag2.setDy(newVec2[1]);
+						
+						root.agentList.set(i, ag1);
+						root.agentList.set(a, ag2);
+						
+						/*
 						if (ag1.getX() < ag2.getX()) { //If on left side of other shape, left shape must go left
 							
-							ag1.setDx(-Math.abs(dx1));
+							ag1.setDx(-Math.abs(dx1)); //Collision system doesn't change the magnitude of the velocities - just reorients them in terms of direction
 							ag2.setDx(Math.abs(dx2));
 							
 							root.agentList.set(i, ag1);
@@ -420,19 +408,19 @@ public class quadTree<E> {
 						} else { //Distribution of velocity of a mass intersecting with a mass that has a horizontal or vertical trajectory
 						
 							if (dx1 == 0) {
-								ag1.setDx(.7*dx2);
+								ag1.setDx(.7*dx2); //Gives the vertically moving mass 70% of the colliding ball's horizontal velocity
 								ag2.setDx(.3*dx2);
 								root.agentList.set(i, ag1);
 								root.agentList.set(a, ag2);
 							} else if (dx2 == 0) {
-								ag1.setDx(.3*dx1);
+								ag1.setDx(.3*dx1); 
 								ag2.setDx(.7*dx1); 
 								root.agentList.set(i, ag1);
 								root.agentList.set(a, ag2);
 							}
 							
 							if (dy1 == 0) {
-								ag1.setDy(.7*dy2);
+								ag1.setDy(.7*dy2); //Gives the horizontally moving mass 70% of the colliding ball's vertical velocity
 								ag2.setDy(.3*dy2); 
 								root.agentList.set(i, ag1);
 								root.agentList.set(a, ag2);
@@ -443,7 +431,7 @@ public class quadTree<E> {
 								root.agentList.set(a, ag2);
 							}
 						}
-						
+						*/
 					}
 				}
 			}
@@ -453,7 +441,79 @@ public class quadTree<E> {
 		
 	}
 	
-
+	public double [] subOp(double [] vector1, double [] vector2) {
+		
+		int dim = vector1.length;
+		
+		double [] newVector = new double[dim];
+		
+		for (int i = 0; i < dim; i++) {
+			newVector[i] = vector1[i]-vector2[i];
+		}
+		
+		return newVector;
+		
+	}
+	
+	public double [] multOp(double [] vector, double value) {
+		int dim = vector.length;
+		
+		for (int i = 0; i < dim; i++) {
+			vector[i] = vector[i]*value;
+		}
+		
+		return vector;
+	}
+	
+	public double eucDist(double [] pos1, double [] pos2) {
+		
+		double xDis = pos2[0] - pos1[0];
+		double yDis = pos2[1] - pos1[1];
+		
+		double dist = Math.sqrt(yDis*yDis + xDis*xDis);
+		
+		return dist;
+		
+	}
+	
+	public double dotOp(double [] vec1, double [] vec2) {
+		
+		double dotValue = 0;
+	
+		for (int i = 0; i < vec1.length; i++) {
+			dotValue += vec1[i]+vec2[i];
+		}
+		
+		return dotValue;
+		
+	}
+	
+	public double [] getVelocity1(double [] vel1, double [] vel2, double [] pos1, double [] pos2){
+		
+		double mid = dotOp(subOp(vel1, vel2), subOp(pos1, pos2));
+		double dist = eucDist(pos1, pos2);
+		
+		double scalar = mid/dist;
+		
+		double [] velVec = subOp(vel1, multOp(subOp(pos1, pos2),scalar));
+		
+		return velVec;
+	}
+	
+	public double [] getVelocity2(double [] vel1, double [] vel2, double [] pos1, double [] pos2){
+		
+		double [] velVec;
+		
+		double mid = dotOp(subOp(vel2, vel1), subOp(pos2, pos1));
+		double dist = eucDist(pos2, pos1);
+		
+		double scalar = mid/dist;
+		
+		velVec = subOp(vel2, multOp(subOp(pos2, pos1),scalar));
+		
+		return velVec;
+	}
+	
 	
 	private class Node{ //Private contained nodeClass (nodes of the subtree)
 		
@@ -464,7 +524,7 @@ public class quadTree<E> {
 		private Rectangle boundingBox;
 		
 		public int levelCounter = 0; // "Levels" of nodes - prevents infinite recursion of created nodes
-		public Node q1;
+		public Node q1; //Every individual node contains 4 subnodes - not initialized until necessary
 		public Node q2;
 		public Node q3;
 		public Node q4;
@@ -473,7 +533,7 @@ public class quadTree<E> {
 		
 		/**
 		 * Constructor for Node
-		 * Defines the nth iteration of this node, alongside the dimensions
+		 * Defines the nth iteration of this node (levelCounter), alongside the dimensions
 		 * 
 		 * @param lowerBoundX
 		 * @param lowerBoundY
@@ -534,7 +594,6 @@ public class quadTree<E> {
 		public int listLen() {
 			return agentList.size();
 		}
-		
 		//Node constructor
 		
 	}
